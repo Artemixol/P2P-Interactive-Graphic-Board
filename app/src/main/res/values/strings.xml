@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Interactive-Graphic-Board</string>
+    <string name="create_session">Создать сессию</string>
+    <string name="find_session">Найти сессию</string>
+    <string name="go_back_activity">Назад</string>
+
+</resources>
