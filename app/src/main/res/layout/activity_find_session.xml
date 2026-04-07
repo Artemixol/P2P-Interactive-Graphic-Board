@@ -26,6 +26,7 @@
         android:layout_marginEnd="30dp"
         android:layout_marginBottom="60dp"
         android:width="350sp"
+        android:onClick="GoToBoard"
         android:text="@string/join_session"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
