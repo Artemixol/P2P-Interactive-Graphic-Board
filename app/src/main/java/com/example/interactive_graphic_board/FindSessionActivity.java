@@ -81,17 +81,17 @@ public class FindSessionActivity extends AppCompatActivity {
     // Поле со списком устройств, доступных для подключения
     // Устанавливается один раз в setAdapterInListView()
     // Обновляется методом onPeersAvailable() объекта PeerListListener
-    ArrayAdapter<WifiP2pDevice> arrayAdapterDevices;
+    ArrayAdapter<String> arrayAdapterDevices;
 
     // Метод для установки ArrayAdapter в ListView
     public void setAdapterInListView() {
         ListView listView = (ListView) findViewById(R.id.scrollRoomsListView);
 
         // Изначально пустой список устройств
-        ArrayList<WifiP2pDevice> devices = new ArrayList<WifiP2pDevice>();
+        ArrayList<String> devices = new ArrayList<String>();
 
         // Инициализация ArrayAdapter с элементами WifiP2pDevice
-        arrayAdapterDevices = new ArrayAdapter<WifiP2pDevice>(this,
+        arrayAdapterDevices = new ArrayAdapter<String>(this,
                 android.R.layout.simple_list_item_1, devices);
 
         // Установка адаптера в ListView
@@ -101,8 +101,42 @@ public class FindSessionActivity extends AppCompatActivity {
     // Метод для обновления данных в адаптере
     public void updateAdapter(Collection<WifiP2pDevice> devices) {
         arrayAdapterDevices.clear();
-        arrayAdapterDevices.addAll(devices);
+
+        ArrayList<String> devicesDescriptions = new ArrayList<String>();
+        for (WifiP2pDevice device : devices) {
+            String deviceName = device.deviceName;
+            String status = getStatus(device.status);
+
+            devicesDescriptions.add(deviceName + "  " + status);
+        }
+        arrayAdapterDevices.addAll(devicesDescriptions);
         arrayAdapterDevices.notifyDataSetChanged();
+    }
+
+    // Расшифровка статуса устройства
+    public String getStatus(int intStatus) {
+        String status;
+
+        switch (intStatus) {
+            case (WifiP2pDevice.CONNECTED):
+                status = "CONNECTED";
+                break;
+            case (WifiP2pDevice.INVITED):
+                status = "INVITED";
+                break;
+            case (WifiP2pDevice.FAILED):
+                status = "FAILED";
+                break;
+            case (WifiP2pDevice.AVAILABLE):
+                status = "AVAILABLE";
+                break;
+            case (WifiP2pDevice.UNAVAILABLE):
+                status = "UNAVAILABLE";
+                break;
+            default: status = "UNKNOWN";
+        }
+
+        return status;
     }
 
     public void GoBack(View v){
