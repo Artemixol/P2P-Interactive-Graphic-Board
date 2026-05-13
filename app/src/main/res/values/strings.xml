@@ -3,5 +3,8 @@
     <string name="create_session">Создать сессию</string>
     <string name="find_session">Найти сессию</string>
     <string name="go_back_activity">Назад</string>
+    <string name="room_name_input_field">Название комнаты</string>
+    <string name="password_field">Пароль</string>
+    <string name="create_canvas">Создать</string>
 
 </resources>
