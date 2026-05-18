@@ -36,6 +36,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.InteractiveGraphicBoard">
         <activity
+            android:name=".CanvasActivity"
+            android:exported="false" />
+        <activity
             android:name=".FindSessionActivity"
             android:exported="false" />
         <activity
