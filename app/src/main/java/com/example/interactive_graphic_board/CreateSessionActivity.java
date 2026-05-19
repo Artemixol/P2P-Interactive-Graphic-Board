@@ -46,7 +46,7 @@ public class CreateSessionActivity extends AppCompatActivity {
 
            Intent intent = new Intent(this, CanvasActivity.class);
            startActivity(intent);
-           finish();
+           finishAffinity(); // очистка стека активностей
        });
 
     }
@@ -57,5 +57,7 @@ public class CreateSessionActivity extends AppCompatActivity {
         /*Возвращение на MainActivity*/
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
+
+        finishAffinity(); // очистка стека активностей
     }
 }

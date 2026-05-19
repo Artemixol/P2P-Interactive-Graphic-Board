@@ -108,6 +108,21 @@ public class WifiDirectManager { // паттерн Синглтон
         });
     }
 
+    // Убрать все текущие подключения
+    public void cancelConnect() {
+        manager.cancelConnect(channel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.d("P2P", "cancelConnect:onSuccess");
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                Log.e("P2P", "cancelConnect:onFailure:" + reason);
+            }
+        });
+    }
+
     /*
         Методы, вызываемые из BroadcastReceiver
      */

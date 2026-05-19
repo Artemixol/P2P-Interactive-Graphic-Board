@@ -41,9 +41,7 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
         });
 
         setAdapterInListView();
-
         wifiManager = WifiDirectManager.getInstance(this);
-        wifiManager.checkAndRequestPermissions(this);
     }
 
     @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES}) // проверка разрешений
@@ -91,6 +89,8 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
             @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                wifiManager.cancelConnect(); // отключиться от остальных устройств
+
                 // Устройство по позиции
                 WifiP2pDevice selectedDevice = currentDevices.get(position);
 
@@ -144,6 +144,8 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
         /*Возвращение на MainActivity*/
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
+
+        finishAffinity(); // очистка стека активностей
     }
 
     // Переход на графическую доску
@@ -155,31 +157,8 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
 
 //        Intent intent = new Intent(this, BoardActivity.class);
 //        startActivity(intent);
-    }
 
-    private static final int PERMISSIONS_REQUEST_CODE = 100;
-
-    // Обработка результата запроса разрешений
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSIONS_REQUEST_CODE) {
-            // Проверка, все ли запрошенные разрешения были предоставлены
-            boolean allGranted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
-                }
-            }
-
-            if (allGranted) {
-                // Разрешения получены
-            } else {
-                // Разрешения не получены
-                Toast.makeText(this, "Для работы приложения необходимы разрешения", Toast.LENGTH_SHORT).show();
-            }
-        }
+        finishAffinity(); // очистка стека активностей
     }
 
     /*
