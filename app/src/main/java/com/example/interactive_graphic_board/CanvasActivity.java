@@ -29,23 +29,11 @@ public class CanvasActivity extends AppCompatActivity {
         drawingView = findViewById(R.id.drawingView);
         tvRoomInfo = findViewById(R.id.tvRoomInfo);
         Button btnClear = findViewById(R.id.btnClear);
-        Button btnToggleMode = findViewById(R.id.btnToggleMode);
 
         String roomName = RoomManager.getInstance().getRoomName();
         tvRoomInfo.setText("Комната: " + roomName + " (хост)");
 
         btnClear.setOnClickListener(v -> drawingView.clearCanvas());
-
-        btnToggleMode.setOnClickListener(v -> {
-            boolean newMode = !drawingView.isMoving();
-            drawingView.setMovingMode(newMode);
-
-            if (newMode) {
-                btnToggleMode.setText("Режим: перемещение");
-            } else {
-                btnToggleMode.setText("Режим: рисование");
-            }
-        });
 
     }
 }

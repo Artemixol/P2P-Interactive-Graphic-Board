@@ -7,19 +7,17 @@
     android:layout_height="match_parent"
     tools:context=".CanvasActivity">
 
-    <LinearLayout
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        tools:layout_editor_absoluteX="0dp"
-        tools:layout_editor_absoluteY="0dp">
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/tvRoomInfo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="Комната: ..." />
+            android:text="Комната: ..."
+            android:padding="8dp" />
 
         <com.example.interactive_graphic_board.DrawingView
             android:id="@+id/drawingView"
@@ -30,17 +28,9 @@
 
         <Button
             android:id="@+id/btnClear"
-            android:layout_width="148dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Очистить" />
-
-        <Button
-            android:id="@+id/btnToggleMode"
-            android:layout_width="151dp"
-            android:layout_height="wrap_content"
-            android:text="Режим: рисование" />
-
-
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
