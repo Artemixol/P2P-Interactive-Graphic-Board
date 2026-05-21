@@ -19,6 +19,12 @@ public class RoomManager {
         this.isHost = true;
     }
 
+    public void joinRoom(String name, String password) {
+        this.roomName = name;
+        this.roomPassword = password;
+        this.isHost = false;
+    }
+
     public String getRoomName() { return roomName; }
     public String getRoomPassword() { return roomPassword; }
     public boolean isHost() { return isHost; }

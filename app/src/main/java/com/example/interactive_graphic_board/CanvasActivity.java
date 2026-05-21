@@ -31,7 +31,9 @@ public class CanvasActivity extends AppCompatActivity {
         Button btnClear = findViewById(R.id.btnClear);
 
         String roomName = RoomManager.getInstance().getRoomName();
-        tvRoomInfo.setText("Комната: " + roomName + " (хост)");
+        boolean isHost = RoomManager.getInstance().isHost();
+        String role = isHost ? "хост" : "гость";
+        tvRoomInfo.setText("Комната: " + roomName + " (" + role + ")");
 
         btnClear.setOnClickListener(v -> drawingView.clearCanvas());
 
