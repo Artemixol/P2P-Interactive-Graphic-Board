@@ -18,12 +18,13 @@ import androidx.annotation.RequiresPermission;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class WifiDirectManager { // паттерн Синглтон
     private static volatile WifiDirectManager instance;
     private final Context appContext; // общий контекст приложения
-    private WifiDirectCallback callback = null; // текущий активити
+    private WifiDirectCallback callback; // текущий активити
     private final WifiP2pManager manager;
     private final WifiP2pManager.Channel channel;
     private WifiDirectBroadcastReceiver receiver;
@@ -119,6 +120,20 @@ public class WifiDirectManager { // паттерн Синглтон
             @Override
             public void onFailure(int reason) {
                 Log.e("P2P", "cancelConnect:onFailure:" + reason);
+            }
+        });
+    }
+
+    public void removeGroup() {
+        manager.removeGroup(channel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.d("P2P", "removeGroup:onSuccess");
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                Log.e("P2P", "removeGroup:onFailure:" + reason);
             }
         });
     }

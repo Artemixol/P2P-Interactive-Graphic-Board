@@ -1,5 +1,7 @@
 package com.example.interactive_graphic_board;
 
+import android.content.Context;
+
 public class RoomManager {
     private static RoomManager instance;
     private String roomName;
@@ -13,10 +15,12 @@ public class RoomManager {
         return instance;
     }
 
-    public void createRoom(String name, String password) {
+    public void createRoom(Context activity, String name, String password) {
         this.roomName = name;
         this.roomPassword = password;
-        this.isHost = true;
+
+        if (activity.getClass() == CreateSessionActivity.class) this.isHost = true;
+        else this.isHost = false;
     }
 
     public String getRoomName() { return roomName; }

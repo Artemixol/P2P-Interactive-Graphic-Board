@@ -29,6 +29,10 @@ public class CreateSessionActivity extends AppCompatActivity {
        EditText password_field = findViewById(R.id.password_field);
        Button create_canvas = findViewById(R.id.create_canvas);
 
+       // Убираем все существующие старые соедиенения
+        WifiDirectManager wifiManager = WifiDirectManager.getInstance(this);
+        wifiManager.removeGroup();
+
        create_canvas.setOnClickListener(v -> {
            String roomName = room_name_input_field.getText().toString().trim();
            String roomPassword = password_field.getText().toString().trim();
@@ -42,11 +46,11 @@ public class CreateSessionActivity extends AppCompatActivity {
            }
 
 
-           RoomManager.getInstance().createRoom(roomName, roomPassword);
+           RoomManager.getInstance().createRoom(this, roomName, roomPassword);
 
            Intent intent = new Intent(this, CanvasActivity.class);
            startActivity(intent);
-           finishAffinity(); // очистка стека активностей
+           finish(); // завершение активности
        });
 
     }
@@ -58,6 +62,6 @@ public class CreateSessionActivity extends AppCompatActivity {
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
 
-        finishAffinity(); // очистка стека активностей
+        finish(); // завершение активности
     }
 }

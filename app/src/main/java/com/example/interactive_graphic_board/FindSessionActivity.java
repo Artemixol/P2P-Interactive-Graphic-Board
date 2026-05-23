@@ -2,7 +2,6 @@ package com.example.interactive_graphic_board;
 
 import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pInfo;
@@ -11,7 +10,9 @@ import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -21,6 +22,18 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.IOError;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +55,7 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
 
         setAdapterInListView();
         wifiManager = WifiDirectManager.getInstance(this);
+        wifiManager.removeGroup();
     }
 
     @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES}) // проверка разрешений
@@ -60,15 +74,23 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
         wifiManager.unregisterCallback(this);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        wifiManager.unregisterCallback(this);
+        wifiManager.cancelConnect();
+    }
+
     /*
         Отображение интерфейса
      */
 
     // Поле со списком устройств, доступных для подключения
     // Устанавливается один раз в setAdapterInListView()
-    // Обновляется методом onPeersUpdated()
-    ArrayAdapter<String> arrayAdapterDevices;
+    ArrayAdapter<String> arrayAdapterDevices; // обновляется в onPeersUpdated()
+    // Текущие доступные для подключения устройства
     List<WifiP2pDevice> currentDevices; // обновляется в onPeersUpdated()
+    WifiP2pDevice selectedDevice; // выбранное устройство
 
     // Метод для установки ArrayAdapter в ListView
     @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
@@ -90,21 +112,18 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 wifiManager.cancelConnect(); // отключиться от остальных устройств
-
-                // Устройство по позиции
-                WifiP2pDevice selectedDevice = currentDevices.get(position);
-
-                wifiManager.connectToDevice(selectedDevice); // подключение к устройству
+                selectedDevice = currentDevices.get(position); // выбранное устройство по позиции
+                wifiManager.connectToDevice(selectedDevice); // подключение к выбранному устройству
             }
         });
     }
 
     // Метод для обновления данных в адаптере
-    public void updateAdapter(List<WifiP2pDevice> devices) {
+    public void updateAdapter() {
         arrayAdapterDevices.clear();
 
         ArrayList<String> devicesDescriptions = new ArrayList<String>();
-        for (WifiP2pDevice device : devices) {
+        for (WifiP2pDevice device : currentDevices) {
             String deviceName = device.deviceName;
             String status = getStatus(device.status);
 
@@ -145,20 +164,81 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
         Intent intent = new Intent(this, MainActivity.class);
         startActivity(intent);
 
-        finishAffinity(); // очистка стека активностей
+        finish(); // завершение активности
     }
 
-    // Переход на графическую доску
+    // Информация по P2P подключению
+    WifiP2pInfo info; // обновляется в onConnectionInfo()
+
+    // Присоединение к комнате и переход на графическую доску
     @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
-    public void GoToBoard(View v){
+    public void GoToBoard(View v) {
 
-        // TODO Реализовать подключение к выбранному пользователем устройству и при успешном: отправление пароля и переход на доску
-        // connectToDevice();
+        if (selectedDevice == null) {
+            Toast.makeText(this, "Выберите устройство для подключения", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (info == null) {
+            Toast.makeText(this, "Подключение не удалось", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-//        Intent intent = new Intent(this, BoardActivity.class);
-//        startActivity(intent);
+        try { // запрос на подключение и ожидание его выполнения
+            Thread request = connectionRequest();
+            request.start();
+            request.join();
 
-        finishAffinity(); // очистка стека активностей
+        } catch (InterruptedException e) {
+            Log.e("P2P", "FindSessionActivity:GoToBoard:" + e);
+        }
+
+        RoomManager.getInstance().createRoom(this, null, null);
+
+        Intent intent = new Intent(this, CanvasActivity.class);
+        startActivity(intent);
+
+        finish(); // завершение активности
+    }
+
+    // Отправка пароля хосту и получение информации о его корректности
+    public Thread connectionRequest() {
+        Log.d("P2P", "FindSessionActivity:connectionRequest");
+
+        return new Thread(() -> {
+            String password = ((TextView) findViewById(R.id.joinPassword)).getText().toString();
+
+            // Подготовка сообщения: сообщение + его длина (в 4 байта)
+            byte[] messagePassword = password.getBytes(StandardCharsets.UTF_8);
+            byte[] messageLength = ByteBuffer.allocate(4).putInt(messagePassword.length).array();
+
+            Socket socket = new Socket();
+            try (socket) {
+                socket.connect((new InetSocketAddress(info.groupOwnerAddress, ServerP2P.PORT)), 5000);
+
+                BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
+                bos.write(messageLength); // отправка длины сообщения
+                bos.write(messagePassword); // отправка самого сообщения
+                bos.flush();
+
+                BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
+                int code = bis.read();
+
+                bos.close();
+                bis.close();
+
+                if (code != 1)
+                    throw new IOException("Incorrect password");
+
+            } catch (IOException e) {
+                Log.e("P2P", "FindSessionActivity:connectionRequest:" + e);
+                Toast.makeText(this, "Подключение не удалось", Toast.LENGTH_SHORT).show();
+
+            } catch (Exception e) {
+                Log.e("P2P", "FindSessionActivity:connectionRequest:" + e);
+                Toast.makeText(this, "Фатальная ошибка", Toast.LENGTH_SHORT).show();
+
+            }
+        });
     }
 
     /*
@@ -166,31 +246,18 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
      */
 
     @Override public void onPeersUpdated(List<WifiP2pDevice> peers) {
-        Log.d("P2P", "onPeersUpdated");
+        Log.d("P2P", "FindSessionActivity:onPeersUpdated");
 
         currentDevices = peers;
-        updateAdapter(peers);
+        updateAdapter();
     }
     @Override public void onConnectionInfo(WifiP2pInfo info, NetworkInfo networkInfo) {
-        Log.d("P2P", "onConnectionInfo");
+        Log.d("P2P", "FindSessionActivity:onConnectionInfo");
 
-        if (info != null && networkInfo != null && networkInfo.isConnected()) {
-            // соединение установлено
-        }
+        if (info != null && networkInfo != null && networkInfo.isConnected()) // соединение установлено
+            this.info = info;
     }
     @Override public void onDeviceChanged(WifiP2pDevice device) {
-        Log.d("P2P", "onDeviceChanged");
-    }
-    @Override public void onDiscoveryStarted() {
-        Log.d("P2P", "onDiscoveryStarted");
-    }
-    @Override public void onDiscoveryFailed(int reason) {
-        Log.d("P2P", "onDiscoveryFailed:" + reason);
-    }
-    @Override public void onConnectSuccess() {
-        Log.d("P2P", "onConnectSuccess");
-    }
-    @Override public void onConnectFailed(int reason) {
-        Log.d("P2P", "onConnectFailed:" + reason);
+        Log.d("P2P", "FindSessionActivity:onDeviceChanged");
     }
 }

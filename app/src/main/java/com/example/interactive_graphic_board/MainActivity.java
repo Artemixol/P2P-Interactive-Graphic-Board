@@ -43,16 +43,12 @@ public class MainActivity extends AppCompatActivity {
         /*Переход на новую страничку ДЛЯ ГОСТЯ, чтобы найти комнату*/
         Intent intent = new Intent(this, FindSessionActivity.class);
         startActivity(intent);
-
-        finishAffinity(); // очистка стека активностей
     }
 
     public void GoToCreateActivity(View v){
         /*Переход на новую страничку ДЛЯ ХОСТА, чтобы создать комнату*/
         Intent intent = new Intent(this, CreateSessionActivity.class);
         startActivity(intent);
-
-        finishAffinity(); // очистка стека активностей
     }
 
 
