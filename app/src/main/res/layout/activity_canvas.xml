@@ -7,13 +7,30 @@
     android:layout_height="match_parent"
     tools:context=".CanvasActivity">
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="БУДУЩИЙ ХОЛСТ"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/tvRoomInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Комната: ..."
+            android:padding="8dp" />
+
+        <com.example.interactive_graphic_board.DrawingView
+            android:id="@+id/drawingView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btnClear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Очистить" />
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

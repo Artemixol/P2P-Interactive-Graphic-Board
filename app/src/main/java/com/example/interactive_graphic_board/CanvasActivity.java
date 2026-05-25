@@ -1,6 +1,8 @@
 package com.example.interactive_graphic_board;
 
 import android.os.Bundle;
+import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -9,6 +11,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 public class CanvasActivity extends AppCompatActivity {
+
+    private DrawingView drawingView;
+    private TextView tvRoomInfo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -20,5 +25,17 @@ public class CanvasActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        drawingView = findViewById(R.id.drawingView);
+        tvRoomInfo = findViewById(R.id.tvRoomInfo);
+        Button btnClear = findViewById(R.id.btnClear);
+
+        String roomName = RoomManager.getInstance().getRoomName();
+        boolean isHost = RoomManager.getInstance().isHost();
+        String role = isHost ? "хост" : "гость";
+        tvRoomInfo.setText("Комната: " + roomName + " (" + role + ")");
+
+        btnClear.setOnClickListener(v -> drawingView.clearCanvas());
+
     }
 }
