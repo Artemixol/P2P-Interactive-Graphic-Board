@@ -10,6 +10,7 @@ import android.content.pm.PackageManager;
 import android.net.NetworkInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
+import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.util.Log;
@@ -19,6 +20,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 public class WifiDirectManager { // паттерн Синглтон
@@ -29,6 +31,7 @@ public class WifiDirectManager { // паттерн Синглтон
     private final WifiP2pManager.Channel channel;
     private WifiDirectBroadcastReceiver receiver;
     private boolean isReceiverRegistered = false;
+    private boolean isHost = false;
 
     private WifiDirectManager(Context context) {
         this.appContext = context.getApplicationContext();
@@ -47,6 +50,14 @@ public class WifiDirectManager { // паттерн Синглтон
         }
         return instance;
     }
+
+    // Определение хоста в зависимости от активности
+    public void setHostStatus(Activity activity) {
+        if (activity.getClass() == CreateSessionActivity.class) isHost = true;
+        else if (activity.getClass() == FindSessionActivity.class) isHost = false;
+    }
+
+    public boolean getHostStatus() {return isHost;}
 
     // Регистрация активити и ресивера
     public void registerCallback(WifiDirectCallback callback, Activity activity) {
@@ -96,6 +107,12 @@ public class WifiDirectManager { // паттерн Синглтон
         WifiP2pConfig config = new WifiP2pConfig();
         config.deviceAddress = device.deviceAddress;
 
+        if (getHostStatus()) {
+            config.groupOwnerIntent = 15;
+        } else {
+            config.groupOwnerIntent = 0;
+        }
+
         manager.connect(channel, config, new WifiP2pManager.ActionListener() {
             @Override
             public void onSuccess() {
@@ -124,6 +141,7 @@ public class WifiDirectManager { // паттерн Синглтон
         });
     }
 
+    // Убрать группу
     public void removeGroup() {
         manager.removeGroup(channel, new WifiP2pManager.ActionListener() {
             @Override
@@ -136,6 +154,51 @@ public class WifiDirectManager { // паттерн Синглтон
                 Log.e("P2P", "removeGroup:onFailure:" + reason);
             }
         });
+    }
+
+    // Проверка на наличие группы
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
+    public void requestGroupInfo() {
+        manager.requestGroupInfo(channel, new WifiP2pManager.GroupInfoListener() {
+            @Override
+            public void onGroupInfoAvailable(WifiP2pGroup group) {
+                if (group != null) {
+                    // Старая группа есть, удаляем её
+                    removeGroup();
+                    deleteAllPersistentGroups();
+                }
+            }
+        });
+    }
+
+    // Создание группы
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
+    public void createGroup() {
+        manager.createGroup(channel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                Log.d("P2P", "createGroup:onSuccess:device is GO");
+            }
+            @Override
+            public void onFailure(int reason) {
+                Log.e("P2P", "createGroup:onFailure:" + reason);
+            }
+        });
+    }
+
+    // Удалить все persistent группы
+    private void deleteAllPersistentGroups() {
+        try {
+            Method deletePersistentGroup = WifiP2pManager.class.getMethod(
+                    "deletePersistentGroup", WifiP2pManager.Channel.class, int.class, WifiP2pManager.ActionListener.class);
+
+            for (int netId = 0; netId < 32; netId++) {
+                deletePersistentGroup.invoke(manager, channel, netId, null);
+            }
+            Log.d("P2P", "deleteAllPersistentGroups:All persistent groups deleted");
+        } catch (Exception e) {
+            Log.e("P2P", "deleteAllPersistentGroups:Error deleting persistent groups:", e);
+        }
     }
 
     /*

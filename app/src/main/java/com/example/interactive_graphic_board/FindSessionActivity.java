@@ -32,6 +32,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -54,31 +55,21 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
         });
 
         setAdapterInListView();
-        wifiManager = WifiDirectManager.getInstance(this);
-        wifiManager.removeGroup();
-    }
 
-    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES}) // проверка разрешений
-    @Override
-    protected void onResume() {
-        super.onResume();
+        wifiManager = WifiDirectManager.getInstance(this);
+        wifiManager.cancelConnect();
+        wifiManager.requestGroupInfo();
+        wifiManager.setHostStatus(this);
 
         wifiManager.registerCallback(this, this);
         wifiManager.discoverPeers(); // поиск узлов в одноранговой сети
     }
 
     @Override
-    public void onPause() {
-        super.onPause();
-
-        wifiManager.unregisterCallback(this);
-    }
-
-    @Override
     protected void onDestroy() {
         super.onDestroy();
+
         wifiManager.unregisterCallback(this);
-        wifiManager.cancelConnect();
     }
 
     /*
@@ -175,12 +166,22 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
     public void GoToBoard(View v) {
 
         if (selectedDevice == null) {
+            Log.e("P2P", "FindSessionActivity:GoToBoard:Device is not selected");
             Toast.makeText(this, "Выберите устройство для подключения", Toast.LENGTH_SHORT).show();
             return;
         }
         if (info == null) {
+            Log.e("P2P", "FindSessionActivity:GoToBoard:Info is empty");
             Toast.makeText(this, "Подключение не удалось", Toast.LENGTH_SHORT).show();
             return;
+        }
+
+        if (info.isGroupOwner) {
+            Log.e("P2P", "FindSessionActivity:GoToBoard:info.isGroupOwner=true");
+            Toast.makeText(this, "Нельзя подключиться к самому себе", Toast.LENGTH_SHORT).show();
+            return;
+        } else {
+            Log.d("P2P", "FindSessionActivity:GoToBoard:info.isGroupOwner=false");
         }
 
         try { // запрос на подключение и ожидание его выполнения
@@ -202,7 +203,7 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
 
     // Отправка пароля хосту и получение информации о его корректности
     public Thread connectionRequest() {
-        Log.d("P2P", "FindSessionActivity:connectionRequest");
+
 
         return new Thread(() -> {
             String password = ((TextView) findViewById(R.id.joinPassword)).getText().toString();
@@ -211,17 +212,23 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
             byte[] messagePassword = password.getBytes(StandardCharsets.UTF_8);
             byte[] messageLength = ByteBuffer.allocate(4).putInt(messagePassword.length).array();
 
-            Socket socket = new Socket();
-            try (socket) {
+            try (Socket socket = new Socket()) {
+
                 socket.connect((new InetSocketAddress(info.groupOwnerAddress, ServerP2P.PORT)), 5000);
+
+                Log.d("P2P", "FindSessionActivity:connectionRequest:Connected to " + selectedDevice.deviceAddress + ":" + ServerP2P.PORT + " from " + socket.getLocalAddress().getHostAddress() + ":" + socket.getLocalPort());
 
                 BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
                 bos.write(messageLength); // отправка длины сообщения
                 bos.write(messagePassword); // отправка самого сообщения
                 bos.flush();
 
+                Log.d("P2P", "FindSessionActivity:connectionRequest:Password sent, waiting for response");
+
                 BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
                 int code = bis.read();
+
+                Log.d("P2P", "FindSessionActivity:connectionRequest:Response code: " + code);
 
                 bos.close();
                 bis.close();
@@ -229,14 +236,17 @@ public class FindSessionActivity extends AppCompatActivity implements WifiDirect
                 if (code != 1)
                     throw new IOException("Incorrect password");
 
+            } catch (SocketTimeoutException e) {
+                Log.e("P2P", "FindSessionActivity:connectionRequest:Timeout waiting for server response:", e);
+                runOnUiThread(() -> Toast.makeText(this, "Сервер не ответил", Toast.LENGTH_SHORT).show());
+
             } catch (IOException e) {
                 Log.e("P2P", "FindSessionActivity:connectionRequest:" + e);
-                Toast.makeText(this, "Подключение не удалось", Toast.LENGTH_SHORT).show();
+                runOnUiThread(() -> Toast.makeText(this, "Подключение не удалось", Toast.LENGTH_SHORT).show());
 
             } catch (Exception e) {
                 Log.e("P2P", "FindSessionActivity:connectionRequest:" + e);
-                Toast.makeText(this, "Фатальная ошибка", Toast.LENGTH_SHORT).show();
-
+                runOnUiThread(() -> Toast.makeText(this, "Фатальная ошибка", Toast.LENGTH_SHORT).show());
             }
         });
     }

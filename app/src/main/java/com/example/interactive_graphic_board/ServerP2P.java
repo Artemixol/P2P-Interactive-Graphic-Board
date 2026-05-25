@@ -91,6 +91,8 @@ public class ServerP2P extends Thread {
 
         @Override
         public void run() {
+            Log.d("P2P", "ServerP2P:CheckPasswordTask:Task started");
+
             try (socket;
                  BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
                  BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream())) {

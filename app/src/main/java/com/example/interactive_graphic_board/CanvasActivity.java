@@ -36,11 +36,10 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
         });
 
         roomManager = RoomManager.getInstance();
-
         wifiManager = WifiDirectManager.getInstance(this);
         wifiManager.registerCallback(this, this);
 
-        if (roomManager.isHost()) {
+        if (wifiManager.getHostStatus()) {
             wifiManager.discoverPeers();
 
             server = new ServerP2P(this.getApplicationContext(), roomManager);
@@ -48,6 +47,7 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
         }
     }
 
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -58,6 +58,7 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
 
         wifiManager.unregisterCallback(this);
         wifiManager.cancelConnect();
+        wifiManager.requestGroupInfo();
     }
 
     /*
