@@ -1,8 +1,10 @@
 package com.example.interactive_graphic_board;
 
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -31,6 +33,10 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // Проверка необходимых разрешений для Wifi Direct
+        WifiDirectManager wifiManager = WifiDirectManager.getInstance(this);
+        wifiManager.checkAndRequestPermissions(this);
     }
 
     public void GoToFindActivity(View v){
@@ -45,4 +51,29 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+
+    private static final int PERMISSIONS_REQUEST_CODE = 100;
+
+    // Обработка результата запроса разрешений
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSIONS_REQUEST_CODE) {
+            // Проверка, все ли запрошенные разрешения были предоставлены
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+
+            if (allGranted) {
+                // Разрешения получены
+            } else {
+                // Разрешения не получены
+                Toast.makeText(this, "Для работы приложения необходимы разрешения", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }

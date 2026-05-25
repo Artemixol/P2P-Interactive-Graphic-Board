@@ -22,8 +22,6 @@
         android:id="@+id/joinButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="30dp"
-        android:layout_marginEnd="30dp"
         android:layout_marginBottom="60dp"
         android:width="350sp"
         android:onClick="GoToBoard"
