@@ -25,10 +25,10 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
     WifiDirectManager wifiManager;
     ServerP2P server;
 
-    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
     private DrawingView drawingView;
     private TextView tvRoomInfo;
 
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
