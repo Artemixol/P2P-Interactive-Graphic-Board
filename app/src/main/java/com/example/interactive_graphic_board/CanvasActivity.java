@@ -6,6 +6,8 @@ import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Button;
+import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.RequiresPermission;
@@ -24,6 +26,9 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
     ServerP2P server;
 
     @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES})
+    private DrawingView drawingView;
+    private TextView tvRoomInfo;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,8 +39,20 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
-
+      
         roomManager = RoomManager.getInstance();
+      
+        drawingView = findViewById(R.id.drawingView);
+        tvRoomInfo = findViewById(R.id.tvRoomInfo);
+        Button btnClear = findViewById(R.id.btnClear);
+
+        String roomName = roomManager.getRoomName();
+        boolean isHost = roomManager.isHost();
+        String role = isHost ? "хост" : "гость";
+        tvRoomInfo.setText("Комната: " + roomName + " (" + role + ")");
+
+        btnClear.setOnClickListener(v -> drawingView.clearCanvas());
+      
         wifiManager = WifiDirectManager.getInstance(this);
         wifiManager.registerCallback(this, this);
 
