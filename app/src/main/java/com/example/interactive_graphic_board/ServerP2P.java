@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 // Сервер для обработки запросов на подключение и передачи данных
@@ -25,7 +26,7 @@ public class ServerP2P extends Thread {
     private final Context context;
     private final RoomManager roomManager;
     private final ThreadPoolExecutor executor;
-    private final List<InetAddress> connectedClients = new CopyOnWriteArrayList<>(); // потокобезопасный список
+    private final List<Socket> connectedClients = new CopyOnWriteArrayList<>(); // потокобезопасный список сокетов клиентов
     private ServerSocket serverSocket;
     private volatile boolean isRunning = true;
 
@@ -49,6 +50,19 @@ public class ServerP2P extends Thread {
                 } catch (SocketException e) {
                     if (!isRunning) break; // ожидаемое закрытие извне
                     Log.e("P2P", "ServerP2P:run:", e);
+                } catch (RejectedExecutionException e) {
+                    Log.e("P2P", "ServerP2P:run:", e);
+                }
+
+                // Уже подключенным клиентам оправляем данные
+                if (!connectedClients.isEmpty()) {
+                    for (Socket clientSocket : connectedClients) {
+                        try {
+                            executor.execute(new SendDataTask(clientSocket));
+                        } catch (RejectedExecutionException e) {
+                            Log.e("P2P", "ServerP2P:run:", e);
+                        }
+                    }
                 }
             }
         } catch (IOException e) {
@@ -71,17 +85,18 @@ public class ServerP2P extends Thread {
         }
     }
 
-    // Добавление новых клиентов
-    private boolean addClient(InetAddress address) {
+    // Добавление новых клиентов (в виде сокетов)
+    private boolean addClient(Socket clientSocket) {
         if (connectedClients.size() >= MAX_CLIENTS) {
-            Log.w("P2P", "Max clients reached, rejecting " + address);
+            Log.w("P2P", "Max clients reached, rejecting " + clientSocket.getInetAddress());
             return false;
         }
-        connectedClients.add(address);
-        Log.d("P2P", "Client added: " + address + ", total: " + connectedClients.size());
+        connectedClients.add(clientSocket);
+        Log.d("P2P", "Client added: " + clientSocket.getInetAddress() + ", total: " + connectedClients.size());
         return true;
     }
 
+    // Проверка пароля
     private class CheckPasswordTask implements Runnable {
         private final Socket socket;
 
@@ -127,7 +142,7 @@ public class ServerP2P extends Thread {
                 String expectedPassword = roomManager.getRoomPassword();
 
                 byte response;
-                if (gotPassword.equals(expectedPassword) && addClient(socket.getInetAddress())) {
+                if (gotPassword.equals(expectedPassword) && addClient(socket)) {
                     response = 1;
                 } else {
                     response = 0;
@@ -138,6 +153,29 @@ public class ServerP2P extends Thread {
 
             } catch (IOException e) {
                 Log.e("P2P", "ServerP2P:CheckPasswordTask:Error in CheckPasswordTask:", e);
+            }
+        }
+    }
+
+    // Отправка данных с холста
+    private class SendDataTask implements Runnable {
+        private final Socket socket;
+
+        SendDataTask(Socket socket) {
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            Log.d("P2P", "ServerP2P:CheckPasswordTask:Task started");
+
+            try (socket;
+                 BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream())) {
+
+                // TODO: добавить подключение и отправку данных
+
+            } catch (IOException e) {
+                Log.e("P2P", "ServerP2P:CheckPasswordTask:Error in SendDataTask:", e);
             }
         }
     }

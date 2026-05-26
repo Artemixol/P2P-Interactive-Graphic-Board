@@ -24,6 +24,7 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
     RoomManager roomManager;
     WifiDirectManager wifiManager;
     ServerP2P server;
+    ClientP2P client;
 
     private DrawingView drawingView;
     private TextView tvRoomInfo;
@@ -61,6 +62,9 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
 
             server = new ServerP2P(this.getApplicationContext(), roomManager);
             server.start();
+        } else {
+            // TODO: добавить создание клиента
+            client = new ClientP2P();
         }
     }
 

@@ -1,5 +1,6 @@
 package com.example.interactive_graphic_board;
 
+// Класс клиента P2P соединения
 public class ClientP2P {
-    public static final int port = 50000; // порт для подключения к клиенту
+    // TODO: добавить чтение данных с сервера, их расшифровку и отправку к DrawingView
 }
