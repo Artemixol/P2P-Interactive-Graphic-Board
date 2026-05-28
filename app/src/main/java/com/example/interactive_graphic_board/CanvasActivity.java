@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.RequiresPermission;
@@ -17,14 +18,15 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import java.io.IOException;
+import java.net.Socket;
 import java.util.List;
 
 public class CanvasActivity extends AppCompatActivity implements WifiDirectCallback {
 
     RoomManager roomManager;
-    WifiDirectManager wifiManager;
-    ServerP2P server;
-    ClientP2P client;
+    WifiDirectManager wifiManager; // для сервера
+    ServerP2P server; // для сервера
+    ClientP2P client; // для клиента
 
     private DrawingView drawingView;
     private TextView tvRoomInfo;
@@ -60,11 +62,19 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
         if (wifiManager.getHostStatus()) {
             wifiManager.discoverPeers();
 
-            server = new ServerP2P(this.getApplicationContext(), roomManager);
+            server = new ServerP2P(roomManager);
             server.start();
+
+            drawingView.addObserver(server);
+
         } else {
-            // TODO: добавить создание клиента
-            client = new ClientP2P();
+            client = new ClientP2P(drawingView, wifiManager);
+            client.startClient();
+
+            if (!client.getIsRunning()) {
+                Toast.makeText(this, "Ошибка подключения", Toast.LENGTH_SHORT).show();
+                onDestroy();
+            }
         }
     }
 
@@ -75,6 +85,10 @@ public class CanvasActivity extends AppCompatActivity implements WifiDirectCallb
 
         if (server != null) {
             server.stopServer();
+            drawingView.removeObserver(server);
+        }
+        if (client != null) {
+            client.stopClient();
         }
 
         wifiManager.unregisterCallback(this);

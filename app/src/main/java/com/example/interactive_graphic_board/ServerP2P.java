@@ -2,11 +2,13 @@ package com.example.interactive_graphic_board;
 
 import android.content.Context;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -19,21 +21,38 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 // Сервер для обработки запросов на подключение и передачи данных
-public class ServerP2P extends Thread {
+public class ServerP2P extends Thread implements DrawObserver {
     public static final int PORT = 50000;
     private static final int MAX_CLIENTS = 3;
 
-    private final Context context;
     private final RoomManager roomManager;
     private final ThreadPoolExecutor executor;
     private final List<Socket> connectedClients = new CopyOnWriteArrayList<>(); // потокобезопасный список сокетов клиентов
     private ServerSocket serverSocket;
-    private volatile boolean isRunning = true;
+    private volatile boolean isRunning;
 
-    public ServerP2P(Context context, RoomManager roomManager) {
-        this.context = context.getApplicationContext();
+    public ServerP2P(RoomManager roomManager) {
         this.roomManager = roomManager;
-        this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
+        this.executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(25);
+        isRunning = true;
+    }
+
+    // Реакция на действие с холстом
+    @Override
+    public void onDrawAction(DrawAction action) {
+        if (!connectedClients.isEmpty()) { // проверка наличия клиентов
+            for (Socket clientSocket : connectedClients) {
+                try {
+//                    if (clientSocket.isClosed()) {
+//                        clientSocket.connect((new InetSocketAddress(clientSocket.getInetAddress(), clientSocket.getPort())), 500);
+//                    }
+                    executor.execute(new SendDataTask(clientSocket, action));
+                    Log.d("P2P", "ServerP2P:onDrawAction");
+                } catch (RejectedExecutionException e) {
+                    Log.e("P2P", "ServerP2P:onDrawAction:", e);
+                }
+            }
+        }
     }
 
     // Работа сервера в отдельном потоке
@@ -53,17 +72,6 @@ public class ServerP2P extends Thread {
                 } catch (RejectedExecutionException e) {
                     Log.e("P2P", "ServerP2P:run:", e);
                 }
-
-                // Уже подключенным клиентам оправляем данные
-                if (!connectedClients.isEmpty()) {
-                    for (Socket clientSocket : connectedClients) {
-                        try {
-                            executor.execute(new SendDataTask(clientSocket));
-                        } catch (RejectedExecutionException e) {
-                            Log.e("P2P", "ServerP2P:run:", e);
-                        }
-                    }
-                }
             }
         } catch (IOException e) {
             Log.e("P2P", "ServerP2P:run:", e);
@@ -76,6 +84,9 @@ public class ServerP2P extends Thread {
     // Закрытие сервера
     public void stopServer() {
         isRunning = false;
+
+        removeClients();
+
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
@@ -96,6 +107,21 @@ public class ServerP2P extends Thread {
         return true;
     }
 
+    // Очистка списка клиентов и закрытие сокетов
+    private void removeClients() {
+        if (!connectedClients.isEmpty()) {
+            for (Socket clientSocket : connectedClients) {
+                try {
+                    clientSocket.close();
+                } catch (IOException e) {
+                    Log.e("P2P", "ServerP2P:removeClients:", e);
+                }
+            }
+
+            connectedClients.clear();
+        }
+    }
+
     // Проверка пароля
     private class CheckPasswordTask implements Runnable {
         private final Socket socket;
@@ -108,20 +134,23 @@ public class ServerP2P extends Thread {
         public void run() {
             Log.d("P2P", "ServerP2P:CheckPasswordTask:Task started");
 
-            try (socket;
-                 BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
-                 BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream())) {
+            byte response = 0;
+            try {
+                BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
+                BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
 
                 // Чтение длины сообщения (4 байта)
                 byte[] lenBuffer = new byte[4];
                 int bytesRead = bis.read(lenBuffer);
                 if (bytesRead != 4) {
                     Log.e("P2P", "ServerP2P:CheckPasswordTask:Failed to read message length");
+                    socket.close();
                     return;
                 }
                 int messageLength = ByteBuffer.wrap(lenBuffer).getInt();
                 if (messageLength <= 0 || messageLength > 4096) { // защита от огромных сообщений
                     Log.e("P2P", "ServerP2P:CheckPasswordTask:Invalid message length:" + messageLength);
+                    socket.close();
                     return;
                 }
 
@@ -135,24 +164,31 @@ public class ServerP2P extends Thread {
                 }
                 if (totalRead != messageLength) {
                     Log.e("P2P", "ServerP2P:CheckPasswordTask:Incomplete message received");
+                    socket.close();
                     return;
                 }
 
                 String gotPassword = new String(data, StandardCharsets.UTF_8);
                 String expectedPassword = roomManager.getRoomPassword();
 
-                byte response;
                 if (gotPassword.equals(expectedPassword) && addClient(socket)) {
                     response = 1;
-                } else {
-                    response = 0;
                 }
+
                 bos.write(response);
                 bos.flush();
                 Log.d("P2P", "ServerP2P:CheckPasswordTask:Response sent:" + response);
 
             } catch (IOException e) {
                 Log.e("P2P", "ServerP2P:CheckPasswordTask:Error in CheckPasswordTask:", e);
+            } finally {
+                if (response == 0) {
+                    try {
+                        socket.close();
+                    } catch (IOException ex) {
+                        Log.e("P2P", "ServerP2P:CheckPasswordTask:", ex);
+                    }
+                }
             }
         }
     }
@@ -160,22 +196,32 @@ public class ServerP2P extends Thread {
     // Отправка данных с холста
     private class SendDataTask implements Runnable {
         private final Socket socket;
+        private final DrawAction action;
 
-        SendDataTask(Socket socket) {
+        SendDataTask(Socket socket, DrawAction action) {
             this.socket = socket;
+            this.action = action;
         }
 
         @Override
         public void run() {
-            Log.d("P2P", "ServerP2P:CheckPasswordTask:Task started");
+            Log.d("P2P", "ServerP2P:SendDataTask:Task started");
 
-            try (socket;
-                 BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream())) {
+            try {
+                BufferedOutputStream bos = new BufferedOutputStream(socket.getOutputStream());
 
-                // TODO: добавить подключение и отправку данных
+                // Подготовка сообщения
+                byte[] message = action.toBytes();
+                byte[] messageLength = ByteBuffer.allocate(4).putInt(message.length).array();
+
+                bos.write(messageLength); // отправка длины сообщения
+                bos.write(message); // отправка самого сообщения
+                bos.flush();
+
+                Log.d("P2P", "ServerP2P:SendDataTask:Data sent");
 
             } catch (IOException e) {
-                Log.e("P2P", "ServerP2P:CheckPasswordTask:Error in SendDataTask:", e);
+                Log.e("P2P", "ServerP2P:SendDataTask:Error in SendDataTask:", e);
             }
         }
     }

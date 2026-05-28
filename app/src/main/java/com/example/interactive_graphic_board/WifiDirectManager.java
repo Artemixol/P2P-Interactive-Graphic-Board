@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.Socket;
 import java.util.ArrayList;
 
 public class WifiDirectManager { // паттерн Синглтон
@@ -32,6 +33,7 @@ public class WifiDirectManager { // паттерн Синглтон
     private WifiDirectBroadcastReceiver receiver;
     private boolean isReceiverRegistered = false;
     private boolean isHost = false;
+    private Socket clientSocket; // сокет для клиента
 
     private WifiDirectManager(Context context) {
         this.appContext = context.getApplicationContext();
@@ -49,6 +51,15 @@ public class WifiDirectManager { // паттерн Синглтон
             }
         }
         return instance;
+    }
+
+    public void setClientSocket(Socket clientSocket) {
+        if (!isHost) this.clientSocket = clientSocket;
+    }
+
+    public Socket getClientSocket() {
+        if (!isHost) return clientSocket;
+        else return null;
     }
 
     // Определение хоста в зависимости от активности
