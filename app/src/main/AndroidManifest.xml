@@ -37,16 +37,20 @@
         android:theme="@style/Theme.InteractiveGraphicBoard">
         <activity
             android:name=".CanvasActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait" /> <!-- Блокировка ориентации, и так для каждой Activity-->
         <activity
             android:name=".FindSessionActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait"/>
         <activity
             android:name=".CreateSessionActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="portrait"/>
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
